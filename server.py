@@ -3,13 +3,13 @@ import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import create_tool_calling_agent, AgentExecutor 
+# The Fix: We explicitly import from the classic library now
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
 # --- SECURITY CHECK ---
-# This securely fetches your key from Render's Environment Variables.
 api_key = os.environ.get("GOOGLE_API_KEY")
 
 if not api_key:
@@ -32,7 +32,6 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# Upgraded to the standard, reliable model name
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash", 
     temperature=0.6,
@@ -74,13 +73,11 @@ def chat():
         response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
         output = response["output"]
         
-        # Clean up Gemini's list format
         if isinstance(output, list):
             output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
         elif not isinstance(output, str):
             output = str(output)
             
-        # Keep memory lightweight
         if len(chat_history) > 20:
             chat_history.pop(0)
             chat_history.pop(0)
