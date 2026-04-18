@@ -8,7 +8,7 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
 # --- IMPORTANT: Put your API key here ---
-os.environ["GOOGLE_API_KEY"] = "AIzaSyCJBmTkKPqcUYxxMhDv0-w9LDETip3_gmo"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyDCWafa3Z8ZwKWMuG-Qm4Lr__qPqlaqcK8"
 
 app = Flask(__name__)
 CORS(app) 
