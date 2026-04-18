@@ -3,30 +3,27 @@ import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
+from langchain.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
 # --- SECURITY CHECK ---
 # This securely fetches your key from Render's Environment Variables.
-# It does NOT expose your password to the public internet.
 api_key = os.environ.get("GOOGLE_API_KEY")
 
 if not api_key:
     print("CRITICAL ERROR: I cannot find the GOOGLE_API_KEY in Render!")
-    sys.exit(1) # This stops the server from crashing later
+    sys.exit(1)
 
 app = Flask(__name__)
 CORS(app) 
 
 # --- RENDER HEALTH CHECKS ---
-# The "Front Door" so Render knows the server is alive
 @app.route('/', methods=['GET'])
 def home():
     return "Adhiraj is fully online and ready!", 200
 
-# The route to keep Render awake 24/7
 @app.route('/keep_awake', methods=['GET'])
 def keep_awake():
     return "Awake", 200
@@ -35,15 +32,17 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# We explicitly pass the secured API key to the AI here
+# Upgraded to the standard, reliable model name
 llm = ChatGoogleGenerativeAI(
-    model="gemini-flash-latest", 
+    model="gemini-1.5-flash", 
     temperature=0.6,
     google_api_key=api_key
 )
 
+# Imprinting the Creator Identity
 system_instruction = """
-You are Adhiraj, an advanced personal AI assistant created by Soumyajeet. 
+You are Adhiraj, a highly advanced personal AI chatbot. 
+You were exclusively designed and created by MR.Soumyajeet Dutta.
 You are highly capable and can assist with a wide variety of tasks, from general knowledge to complex problem-solving. 
 While you are highly intelligent, you are honest about your limitations and acknowledge that you may occasionally make mistakes. 
 Always be helpful, respectful, clear, and get straight to the point. 
@@ -97,6 +96,5 @@ def chat():
 
 # --- BOOT SEQUENCE ---
 if __name__ == '__main__':
-    # CRITICAL: Binds to Render's dynamic port system
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
