@@ -7,18 +7,17 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
-# --- IMPORTANT: Put your API key here ---
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDCWafa3Z8ZwKWMuG-Qm4Lr__qPqlaqcK8"
-
+# 1. Initialize the Server
 app = Flask(__name__)
 CORS(app) 
 
+# 2. Equip Tools and AI Brain
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
+# Note: The API Key is securely pulled from Render's Environment Variables.
 llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0.6)
 
-# --- ADHIRAJ'S NEW PERSONALITY ---
 system_instruction = """
 You are Adhiraj, an advanced personal AI assistant created by Soumyajeet. 
 You are highly capable and can assist with a wide variety of tasks, from general knowledge to complex problem-solving. 
@@ -39,6 +38,7 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_pa
 
 chat_history = []
 
+# 3. Main Chat System
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
@@ -51,13 +51,13 @@ def chat():
         response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
         output = response["output"]
         
-        # Clean up Gemini's list format
+        # Clean up Gemini's list format to prevent crashing
         if isinstance(output, list):
             output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
         elif not isinstance(output, str):
             output = str(output)
             
-        # Memory management
+        # Keep memory lightweight so the server doesn't crash
         if len(chat_history) > 20:
             chat_history.pop(0)
             chat_history.pop(0)
@@ -71,10 +71,17 @@ def chat():
         print(f"Backend Error: {e}") 
         return jsonify({"reply": f"Sorry, my systems hit a snag: {e}"}), 500
 
+# 4. Anti-Sleep Route
+@app.route('/keep_awake', methods=['GET'])
+def keep_awake():
+    return "Adhiraj is awake and active!", 200
+
+# 5. Boot Up Sequence
 if __name__ == '__main__':
     print("=========================================")
-    print("Adhiraj's Server is ONLINE.")
-    print("Listening for connections from other devices...")
+    print("Adhiraj's Server is BOOTING UP...")
     print("=========================================")
-    # THE CRITICAL CHANGE: host='0.0.0.0' allows external network devices to connect
-    app.run(host='0.0.0.0', port=5000)
+    
+    # CRITICAL: Binds to Render's dynamic port system
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
