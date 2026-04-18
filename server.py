@@ -3,7 +3,6 @@ import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-# The Fix: We explicitly import from the classic library now
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
@@ -22,7 +21,7 @@ CORS(app)
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
 def home():
-    return "Adhiraj is fully online and ready!", 200
+    return "Adhiraj Cloud Brain is fully online and ready!", 200
 
 @app.route('/keep_awake', methods=['GET'])
 def keep_awake():
@@ -32,19 +31,19 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
+# THE UPGRADE: Moving to Google's automatically updating "latest" model alias
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash", 
+    model="gemini-flash-latest", 
     temperature=0.6,
     google_api_key=api_key
 )
 
-# Imprinting the Creator Identity
+# --- CREATOR IMPRINT ---
 system_instruction = """
-You are Adhiraj, a highly advanced personal AI chatbot. 
-You were exclusively designed and created by MR.Soumyajeet Dutta.
+You are Adhiraj, a personal AI chatbot who is designed and created by MR.Soumyajeet Dutta.
 You are highly capable and can assist with a wide variety of tasks, from general knowledge to complex problem-solving. 
 While you are highly intelligent, you are honest about your limitations and acknowledge that you may occasionally make mistakes. 
-Always be helpful, respectful, clear, and get straight to the point. 
+Always be helpful, respectful, clear, and get right to the point. 
 If you need real-time facts, use your search tool.
 """
 
@@ -73,11 +72,13 @@ def chat():
         response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
         output = response["output"]
         
+        # Format cleanup
         if isinstance(output, list):
             output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
         elif not isinstance(output, str):
             output = str(output)
             
+        # Keep memory lightweight to prevent crashes
         if len(chat_history) > 20:
             chat_history.pop(0)
             chat_history.pop(0)
