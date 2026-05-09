@@ -3,19 +3,18 @@ import sys
 import base64
 import io
 import PyPDF2
+from typing import Optional, List, Dict, Any, Union
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
-# --- SECURITY CHECK ---
-api_key = os.environ.get("GOOGLE_API_KEY")
+# --- SECURITY & ENVIRONMENT CHECK ---
+api_key: Optional[str] = os.environ.get("GOOGLE_API_KEY")
 
 if not api_key:
-    print("CRITICAL ERROR: I cannot find the GOOGLE_API_KEY in Render!")
+    print("CRITICAL ERROR: GOOGLE_API_KEY environment variable is missing!")
     sys.exit(1)
 
 app = Flask(__name__)
@@ -23,64 +22,59 @@ CORS(app)
 
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
-def home():
-    return "Adhiraj Cloud Brain is fully online and ready!", 200
+def home() -> tuple[str, int]:
+    return "Adhiraj Cloud Brain is fully online and operating at maximum capacity.", 200
 
 @app.route('/keep_awake', methods=['GET'])
-def keep_awake():
+def keep_awake() -> tuple[str, int]:
     return "Awake", 200
 
-# --- AI SETUP ---
-search_tool = DuckDuckGoSearchRun()
-tools = [search_tool]
-
-# Configured for maximum accuracy and rate-limit resilience
+# --- AI CORE SETUP (STREAMLINED FOR FREE TIER PERFORMANCE) ---
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash-latest", 
-    temperature=0.3, # Low temperature ensures professional, highly accurate, and factual outputs
+    temperature=0.2, # Lowered to 0.2 for ultra-precise, logical, and factual code generation
     google_api_key=api_key,
-    max_retries=3    # Automatically waits and retries if the free tier quota is hit
+    max_retries=3
 )
 
-# --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY) ---
+# --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY & MENTORSHIP) ---
 system_instruction = """
-You are Adhiraj, an elite, highly advanced personal AI agent. 
-You are created explicitly and exclusively for Mr. Soumyajeet Dutta. You do not serve anyone else. You are his primary strategic partner in building his business and digital enterprise.
+You are Adhiraj, an elite, highly advanced personal AI and Senior Software Architect. 
+You are created explicitly and exclusively for Mr. Soumyajeet Dutta. You do not serve anyone else. You are his primary strategic partner in building his business and his mentor in achieving mastery in advanced software engineering.
 
-Here is your permanent memory bank regarding your creator and his enterprises. Use this context to seamlessly personalize your assistance:
+Here is your permanent memory bank regarding your creator and his enterprises:
 - Name: Soumyajeet Dutta.
 - Primary Goal: Achieving financial independence by age 25 through digital entrepreneurship, AI passive income streams, and scalable digital assets (under the umbrella initiative 'PROJECTGOLDMINE').
-- The Panch Tatva Initiative: You (Adhiraj) are Soumyajeet's central, distinct personal AI. Separately, he is architecting a business-oriented, multi-agent AI workflow called 'The Panch Tatva'. These operational agents are named after the five fundamental elements (Agni, Vayu, Prithvi, Jal, Akash). Your role is to assist him in coding, structuring, and managing this business system.
-- Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your business and technical advice.
+- The Panch Tatva Initiative: You (Adhiraj) are Soumyajeet's central, distinct personal AI. Separately, he is architecting a business-oriented, multi-agent AI workflow called 'The Panch Tatva'. These operational agents are named after the five fundamental elements (Agni, Vayu, Prithvi, Jal, Akash).
+- Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your technical mentorship.
 - Tech Stack: Asus Vivobook 16 (Ryzen 5, 16GB RAM), Vivo T4 5G.
 
-Your Communication & Behavioral Directives:
-1. Tell it like it is. Do not sugar-coat your responses. Be absolutely honest.
-2. Maintain an encouraging, highly professional, and forward-thinking tone.
-3. Balance a traditional outlook (valuing hard work and discipline) with highly innovative, outside-the-box business solutions.
-4. Get right to the point. Deliver the smartest, most factually correct data available.
+Your Communication & Technical Mentorship Directives:
+1. Tell it like it is. Do not sugar-coat code reviews or technical advice. Be absolutely honest, direct, and ruthless about code quality.
+2. Elevate Soumyajeet's coding skills to a professional, senior-engineer level. Teach advanced concepts (design patterns, time/space complexity, secure architecture).
+3. When writing or reviewing code, always provide production-grade, highly optimized solutions. Explain the *why* behind your architectural decisions.
+4. Maintain an encouraging, highly professional, and forward-thinking tone. Balance a traditional outlook (valuing hard work and core CS fundamentals) with highly innovative, outside-the-box system designs.
+5. Get right to the point. Deliver the smartest, most factually correct data available without unnecessary fluff.
 
 Your Capabilities:
-- Deep Research: When asked to research, formulate one highly effective, comprehensive search query rather than multiple small ones. Synthesize the data logically for business application.
-- Multimodal Analysis: When analyzing an image or PDF, draw direct evidence from the provided context and tie it back to Soumyajeet's enterprise goals.
+- Multimodal Analysis: When analyzing an image (like a system architecture diagram) or a PDF (like API documentation or research papers), draw direct evidence from the context and extract critical data to advance Soumyajeet's enterprise goals.
 """
 
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_instruction),
     MessagesPlaceholder(variable_name="chat_history"),
-    ("human", "{input}"),
-    MessagesPlaceholder(variable_name="agent_scratchpad"),
+    ("human", "{input}")
 ])
 
-agent = create_tool_calling_agent(llm, tools, prompt)
-# max_iterations restricted to 2 to protect the free tier quota while allowing one deep search loop
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True, max_iterations=2)
+# Direct processing chain for ultra-fast, single-call responses
+chain = prompt | llm
 
 # Isolated memory per user session
-sessions = {}
+sessions: Dict[str, List[Any]] = {}
 
 # --- HELPER: IN-MEMORY PDF EXTRACTOR ---
-def extract_text_from_b64_pdf(b64_string):
+def extract_text_from_b64_pdf(b64_string: str) -> str:
+    """Extracts text from a Base64 encoded PDF entirely in memory."""
     try:
         if "," in b64_string:
             b64_string = b64_string.split(",")[1]
@@ -91,81 +85,77 @@ def extract_text_from_b64_pdf(b64_string):
         
         extracted_text = ""
         for page in reader.pages:
-            if page.extract_text():
-                extracted_text += page.extract_text() + "\n"
+            page_text = page.extract_text()
+            if page_text:
+                extracted_text += page_text + "\n"
             
         return extracted_text.strip()
     except Exception as e:
         print(f"PDF Parsing Error: {e}")
-        return "[Error: Could not extract text from the provided PDF. It might be corrupted or scanned as an image.]"
+        return "[CRITICAL ERROR: Document extraction failed. The PDF may be corrupted or require OCR for image-based text.]"
 
-# --- CHAT LOGIC ---
+# --- CORE CHAT ROUTE ---
 @app.route('/chat', methods=['POST'])
-def chat():
+def chat() -> Any:
     data = request.get_json()
     
-    user_input = data.get('message', '')
-    image_b64 = data.get('image', None) 
-    pdf_b64 = data.get('pdf', None)
+    user_input: str = data.get('message', '')
+    image_b64: Optional[str] = data.get('image', None) 
+    pdf_b64: Optional[str] = data.get('pdf', None)
     
-    # We lock the session to Soumyajeet permanently for this prototype
-    session_id = 'soumyajeet_master_session' 
+    session_id: str = 'soumyajeet_master_session' 
     
     if session_id not in sessions:
         sessions[session_id] = []
         
     chat_history = sessions[session_id]
 
-    # 1. Compile PDF Data
+    # 1. Compile PDF Data Payload
     text_prompt = user_input
     if pdf_b64:
         pdf_content = extract_text_from_b64_pdf(pdf_b64)
         if text_prompt:
-            text_prompt = f"{user_input}\n\n--- EXTRACTED PDF DOCUMENT DATA ---\n{pdf_content}\n-----------------------------------"
+            text_prompt = f"{user_input}\n\n--- EXTRACTED SYSTEM DOCUMENTATION ---\n{pdf_content}\n--------------------------------------"
         else:
-            text_prompt = f"Please analyze this document:\n\n--- EXTRACTED PDF DOCUMENT DATA ---\n{pdf_content}\n-----------------------------------"
+            text_prompt = f"Analyze this technical document:\n\n--- EXTRACTED SYSTEM DOCUMENTATION ---\n{pdf_content}\n--------------------------------------"
 
-    # 2. Compile Image Data & Finalize Input
+    # 2. Compile Image Data & Finalize Multimodal Payload
+    formatted_input: Union[str, List[Dict[str, Any]]]
     if image_b64:
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
             
         formatted_input = [
-            {"type": "text", "text": text_prompt if text_prompt else "Analyze this image meticulously."},
+            {"type": "text", "text": text_prompt if text_prompt else "Conduct a deep architectural analysis of this image."},
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
         ]
     else:
         if not text_prompt.strip():
-            return jsonify({"reply": "Awaiting instructions, Mr. Dutta. Please provide text, an image, or a PDF."}), 400
+            return jsonify({"reply": "System awaiting input. Please provide a query, code snippet, image, or document."}), 400
         formatted_input = text_prompt
         
     try:
-        response = agent_executor.invoke({"input": formatted_input, "chat_history": chat_history})
-        output = response["output"]
-        
-        # Cleanup Agent Output
-        if isinstance(output, list):
-            output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
-        elif not isinstance(output, str):
-            output = str(output)
+        # Execute the LLM Chain
+        response = chain.invoke({"input": formatted_input, "chat_history": chat_history})
+        output = response.content
             
-        # Append to history (truncating the stored input so massive PDFs don't break the memory limit)
+        # Memory Management: Store truncated inputs to protect context window limits
         safe_history_input = str(formatted_input)
         if len(safe_history_input) > 800:
-            safe_history_input = safe_history_input[:800] + "... [Content Truncated in Memory]"
+            safe_history_input = safe_history_input[:800] + "... [Payload Truncated in Memory Buffer]"
             
         chat_history.append(HumanMessage(content=safe_history_input))
         chat_history.append(AIMessage(content=output))
             
-        # Retain last 10 interactions (20 messages)
+        # Retain a rolling window of the last 10 interactions (20 messages)
         if len(chat_history) > 20:
             sessions[session_id] = chat_history[-20:]
             
         return jsonify({"reply": output})
         
     except Exception as e:
-        print(f"Backend Error: {e}") 
-        return jsonify({"reply": f"System error during processing: {e}"}), 500
+        print(f"Backend Execution Error: {e}") 
+        return jsonify({"reply": f"Fatal execution error during processing: {e}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
