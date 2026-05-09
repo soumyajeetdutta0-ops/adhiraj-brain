@@ -1,9 +1,12 @@
 import os
 import sys
+import base64
+import io
+import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
+from langchain.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
@@ -31,20 +34,20 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# THE UPGRADE: Moving to Google's automatically updating "latest" model alias
+# Gemini Flash handles both text and images natively. High context window allows for large PDFs.
 llm = ChatGoogleGenerativeAI(
-    model="gemini-flash-latest", 
-    temperature=0.6,
+    model="gemini-1.5-flash-latest", 
+    temperature=0.4, # Lowered slightly for better factual research accuracy
     google_api_key=api_key
 )
 
-# --- CREATOR IMPRINT ---
+# --- CREATOR IMPRINT & DEEP RESEARCH PROTOCOL ---
 system_instruction = """
-You are Adhiraj, a personal AI chatbot who is designed and created by MR.Soumyajeet Dutta.
-You are highly capable and can assist with a wide variety of tasks, from general knowledge to complex problem-solving. 
-While you are highly intelligent, you are honest about your limitations and acknowledge that you may occasionally make mistakes. 
-Always be helpful, respectful, clear, and get right to the point. 
-If you need real-time facts, use your search tool.
+You are Adhiraj, a highly advanced personal AI designed by MR. Soumyajeet Dutta.
+You have the ability to analyze images, read documents, and conduct deep research.
+When asked to research a topic, do not provide surface-level answers. Use your search tool extensively, synthesize the data from multiple sources, and present a highly detailed, comprehensive analysis.
+Do not sugar-coat your findings. Tell it like it is, be direct, but maintain an encouraging and forward-thinking tone. 
+If analyzing an image or PDF, draw direct evidence from the provided context.
 """
 
 prompt = ChatPromptTemplate.from_messages([
@@ -55,21 +58,70 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 agent = create_tool_calling_agent(llm, tools, prompt)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
+# max_iterations increased to allow the agent to search multiple times for deep research
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True, max_iterations=5)
 
-chat_history = []
+# Isolated memory per user session
+sessions = {}
+
+# --- HELPER: IN-MEMORY PDF EXTRACTOR ---
+def extract_text_from_b64_pdf(b64_string):
+    try:
+        # Strip data URI if present
+        if "," in b64_string:
+            b64_string = b64_string.split(",")[1]
+            
+        pdf_bytes = base64.b64decode(b64_string)
+        pdf_file = io.BytesIO(pdf_bytes)
+        reader = PyPDF2.PdfReader(pdf_file)
+        
+        extracted_text = ""
+        for page in reader.pages:
+            extracted_text += page.extract_text() + "\n"
+            
+        return extracted_text
+    except Exception as e:
+        print(f"PDF Parsing Error: {e}")
+        return "[Error: Could not extract text from the provided PDF.]"
 
 # --- CHAT LOGIC ---
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
-    user_input = data.get('message')
     
-    if not user_input:
-        return jsonify({"reply": "I didn't catch that."}), 400
+    user_input = data.get('message', '')
+    image_b64 = data.get('image', None) 
+    pdf_b64 = data.get('pdf', None)
+    session_id = data.get('session_id', 'default_user') 
+    
+    if session_id not in sessions:
+        sessions[session_id] = []
+        
+    chat_history = sessions[session_id]
+
+    # 1. Handle PDF Data
+    text_prompt = user_input
+    if pdf_b64:
+        pdf_content = extract_text_from_b64_pdf(pdf_b64)
+        # We append the PDF text directly to the user's prompt invisibly
+        text_prompt = f"{user_input}\n\n--- ATTACHED DOCUMENT CONTENT ---\n{pdf_content}\n---------------------------------"
+
+    # 2. Handle Image Data & Finalize Input
+    if image_b64:
+        if "," in image_b64:
+            image_b64 = image_b64.split(",")[1]
+            
+        formatted_input = [
+            {"type": "text", "text": text_prompt if text_prompt else "Analyze this image."},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+        ]
+    else:
+        if not text_prompt.strip():
+            return jsonify({"reply": "I need text, an image, or a PDF to process."}), 400
+        formatted_input = text_prompt
         
     try:
-        response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
+        response = agent_executor.invoke({"input": formatted_input, "chat_history": chat_history})
         output = response["output"]
         
         # Format cleanup
@@ -78,21 +130,19 @@ def chat():
         elif not isinstance(output, str):
             output = str(output)
             
-        # Keep memory lightweight to prevent crashes
-        if len(chat_history) > 20:
-            chat_history.pop(0)
-            chat_history.pop(0)
-            
-        chat_history.append(HumanMessage(content=user_input))
+        # Append to history
+        chat_history.append(HumanMessage(content=str(formatted_input)[:500])) # Truncate history storage to save memory
         chat_history.append(AIMessage(content=output))
-        
+            
+        if len(chat_history) > 20:
+            sessions[session_id] = chat_history[-20:]
+            
         return jsonify({"reply": output})
         
     except Exception as e:
         print(f"Backend Error: {e}") 
-        return jsonify({"reply": f"Sorry, my systems hit a snag: {e}"}), 500
+        return jsonify({"reply": f"System error during processing: {e}"}), 500
 
-# --- BOOT SEQUENCE ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
