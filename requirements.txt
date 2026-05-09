@@ -5,9 +5,9 @@ langchain-core
 langchain-community
 langchain-google-genai
 google-generativeai
-ddgs
+duckduckgo-search
 beautifulsoup4
 python-dotenv
 requests
 gunicorn
-langchain-classic
+PyPDF2
