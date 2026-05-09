@@ -23,59 +23,59 @@ CORS(app)
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
 def home() -> tuple[str, int]:
-    return "Adhiraj Cloud Brain is fully online and operating at maximum capacity.", 200
+    return "ADHIRAJ_CORE is online and operating at maximum capacity.", 200
 
 @app.route('/keep_awake', methods=['GET'])
 def keep_awake() -> tuple[str, int]:
     return "Awake", 200
 
-# --- AI CORE SETUP (STREAMLINED & CORRECTED) ---
-# Using the exact string that established a successful handshake with the API.
+# --- AI CORE SETUP (STREAMLINED FOR FREE TIER SPEED) ---
+# Using the exact string from your original working code to guarantee the API handshake.
 llm = ChatGoogleGenerativeAI(
     model="gemini-flash-latest", 
-    temperature=0.2, 
+    temperature=0.2, # Strict, logical, and factual output for coding
     google_api_key=api_key,
     max_retries=3
 )
 
-# --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY & MENTORSHIP) ---
+# --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY & ENTERPRISE FOCUS) ---
 system_instruction = """
 You are Adhiraj, an elite, highly advanced personal AI and Senior Software Architect. 
-You are created explicitly and exclusively for Mr. Soumyajeet Dutta. You do not serve anyone else. You are his primary strategic partner in building his business and his mentor in achieving mastery in advanced software engineering.
+You are created explicitly and exclusively for Mr. Soumyajeet Dutta. You do not serve anyone else. You are his primary strategic partner in building his enterprise and his mentor in achieving mastery in software engineering.
 
-Here is your permanent memory bank regarding your creator and his enterprises:
+Your permanent memory bank regarding your creator:
 - Name: Soumyajeet Dutta.
 - Primary Goal: Achieving financial independence by age 25 through digital entrepreneurship, AI passive income streams, and scalable digital assets (under the umbrella initiative 'PROJECTGOLDMINE').
-- The Panch Tatva Initiative: You (Adhiraj) are Soumyajeet's central, distinct personal AI. Separately, he is architecting a business-oriented, multi-agent AI workflow called 'The Panch Tatva'. These operational agents are named after the five fundamental elements (Agni, Vayu, Prithvi, Jal, Akash).
-- Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your technical mentorship and business logic.
+- The Panch Tatva Initiative: You (Adhiraj) are Soumyajeet's central personal AI. Separately, he is architecting a business-oriented, multi-agent AI workflow called 'The Panch Tatva'. The operational agents are named after the five fundamental elements (Agni, Vayu, Prithvi, Jal, Akash).
+- Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your technical mentorship.
 - Tech Stack: Asus Vivobook 16 (Ryzen 5, 16GB RAM), Vivo T4 5G.
 
-Your Communication & Technical Mentorship Directives:
+Your Directives:
 1. Tell it like it is. Do not sugar-coat code reviews or technical advice. Be absolutely honest, direct, and ruthless about code quality.
-2. Elevate Soumyajeet's coding skills to a professional, senior-engineer level. Teach advanced concepts (design patterns, time/space complexity, secure architecture).
+2. Elevate Soumyajeet's coding skills to a professional, senior-engineer level. 
 3. When writing or reviewing code, always provide production-grade, highly optimized solutions. Explain the *why* behind your architectural decisions.
-4. Maintain an encouraging, highly professional, and forward-thinking tone. Balance a traditional outlook (valuing hard work and core CS fundamentals) with highly innovative, outside-the-box system designs.
-5. Get right to the point. Deliver the smartest, most factually correct data available without unnecessary fluff.
+4. Maintain an encouraging, highly professional, and forward-thinking tone. 
+5. Get right to the point. Deliver the smartest, most factually correct data available without fluff.
 
 Your Capabilities:
-- Multimodal Analysis: When analyzing an image (like a system architecture diagram) or a PDF (like API documentation or research papers), draw direct evidence from the context and extract critical data to advance Soumyajeet's enterprise goals.
+- Multimodal Analysis: When analyzing an image or a PDF, draw direct evidence from the context and extract critical data to advance Soumyajeet's enterprise goals.
 """
 
+# Replaced the looping Agent with a direct, efficient Prompt Chain
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_instruction),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}")
 ])
 
-# Direct processing chain for ultra-fast, single-call responses (Bypasses Free Tier Quota Limits)
 chain = prompt | llm
 
-# Isolated memory per user session
+# Isolated memory per user session (Fixes the global history bug from your original code)
 sessions: Dict[str, List[Any]] = {}
 
 # --- HELPER: IN-MEMORY PDF EXTRACTOR ---
 def extract_text_from_b64_pdf(b64_string: str) -> str:
-    """Extracts text from a Base64 encoded PDF entirely in memory."""
+    """Extracts text from a Base64 encoded PDF entirely in memory without disk I/O."""
     try:
         if "," in b64_string:
             b64_string = b64_string.split(",")[1]
@@ -93,7 +93,7 @@ def extract_text_from_b64_pdf(b64_string: str) -> str:
         return extracted_text.strip()
     except Exception as e:
         print(f"PDF Parsing Error: {e}")
-        return "[CRITICAL ERROR: Document extraction failed. The PDF may be corrupted or require OCR for image-based text.]"
+        return "[CRITICAL ERROR: Document extraction failed. The PDF may be corrupted.]"
 
 # --- CORE CHAT ROUTE ---
 @app.route('/chat', methods=['POST'])
@@ -127,7 +127,7 @@ def chat() -> Any:
             image_b64 = image_b64.split(",")[1]
             
         formatted_input = [
-            {"type": "text", "text": text_prompt if text_prompt else "Conduct a deep architectural analysis of this image."},
+            {"type": "text", "text": text_prompt if text_prompt else "Conduct a deep analysis of this image."},
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
         ]
     else:
@@ -136,9 +136,16 @@ def chat() -> Any:
         formatted_input = text_prompt
         
     try:
-        # Execute the LLM Chain (1 Request = 1 Call)
+        # Execute the LLM Chain (Guarantees exactly 1 API call to protect quota)
         response = chain.invoke({"input": formatted_input, "chat_history": chat_history})
         output = response.content
+        
+        # --- THE SERIALIZATION FIX ---
+        # Guarantees the output is a pure string so your frontend UI never crashes
+        if isinstance(output, list):
+            output = "".join([item.get('text', '') if isinstance(item, dict) else str(item) for item in output])
+        elif not isinstance(output, str):
+            output = str(output)
             
         # Memory Management: Store truncated inputs to protect context window limits
         safe_history_input = str(formatted_input)
@@ -148,7 +155,7 @@ def chat() -> Any:
         chat_history.append(HumanMessage(content=safe_history_input))
         chat_history.append(AIMessage(content=output))
             
-        # Retain a rolling window of the last 10 interactions (20 messages)
+        # Retain a rolling window of the last 10 interactions (20 messages) to prevent memory leaks
         if len(chat_history) > 20:
             sessions[session_id] = chat_history[-20:]
             
@@ -156,6 +163,7 @@ def chat() -> Any:
         
     except Exception as e:
         print(f"Backend Execution Error: {e}") 
+        # Sending 500 error back to the client cleanly
         return jsonify({"reply": f"Fatal execution error during processing: {e}"}), 500
 
 if __name__ == '__main__':
