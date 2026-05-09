@@ -29,10 +29,10 @@ def home() -> tuple[str, int]:
 def keep_awake() -> tuple[str, int]:
     return "Awake", 200
 
-# --- AI CORE SETUP (STREAMLINED FOR FREE TIER PERFORMANCE) ---
-# PATCH APPLIED: Pointing to the stable model registry to prevent 404 errors.
+# --- AI CORE SETUP (STREAMLINED & CORRECTED) ---
+# Using the exact string that established a successful handshake with the API.
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash", 
+    model="gemini-flash-latest", 
     temperature=0.2, 
     google_api_key=api_key,
     max_retries=3
@@ -47,7 +47,7 @@ Here is your permanent memory bank regarding your creator and his enterprises:
 - Name: Soumyajeet Dutta.
 - Primary Goal: Achieving financial independence by age 25 through digital entrepreneurship, AI passive income streams, and scalable digital assets (under the umbrella initiative 'PROJECTGOLDMINE').
 - The Panch Tatva Initiative: You (Adhiraj) are Soumyajeet's central, distinct personal AI. Separately, he is architecting a business-oriented, multi-agent AI workflow called 'The Panch Tatva'. These operational agents are named after the five fundamental elements (Agni, Vayu, Prithvi, Jal, Akash).
-- Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your technical mentorship.
+- Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your technical mentorship and business logic.
 - Tech Stack: Asus Vivobook 16 (Ryzen 5, 16GB RAM), Vivo T4 5G.
 
 Your Communication & Technical Mentorship Directives:
@@ -67,7 +67,7 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{input}")
 ])
 
-# Direct processing chain for ultra-fast, single-call responses
+# Direct processing chain for ultra-fast, single-call responses (Bypasses Free Tier Quota Limits)
 chain = prompt | llm
 
 # Isolated memory per user session
@@ -136,7 +136,7 @@ def chat() -> Any:
         formatted_input = text_prompt
         
     try:
-        # Execute the LLM Chain
+        # Execute the LLM Chain (1 Request = 1 Call)
         response = chain.invoke({"input": formatted_input, "chat_history": chat_history})
         output = response.content
             
