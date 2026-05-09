@@ -30,9 +30,10 @@ def keep_awake() -> tuple[str, int]:
     return "Awake", 200
 
 # --- AI CORE SETUP (STREAMLINED FOR FREE TIER PERFORMANCE) ---
+# PATCH APPLIED: Pointing to the stable model registry to prevent 404 errors.
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash-latest", 
-    temperature=0.2, # Lowered to 0.2 for ultra-precise, logical, and factual code generation
+    model="gemini-1.5-flash", 
+    temperature=0.2, 
     google_api_key=api_key,
     max_retries=3
 )
