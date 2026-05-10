@@ -29,13 +29,12 @@ def home() -> tuple[str, int]:
 def keep_awake() -> tuple[str, int]:
     return "Awake", 200
 
-# --- AI CORE SETUP (STREAMLINED FOR FREE TIER SPEED) ---
-# Using the exact string from your original working code to guarantee the API handshake.
+# --- AI CORE SETUP (STREAMLINED FOR 1500/DAY FREE TIER) ---
 llm = ChatGoogleGenerativeAI(
-    model="gemini-flash-latest", 
+    model="gemini-1.5-flash", 
     temperature=0.2, # Strict, logical, and factual output for coding
     google_api_key=api_key,
-    max_retries=3
+    max_retries=0 # Prevents background spamming of the API
 )
 
 # --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY & ENTERPRISE FOCUS) ---
@@ -45,6 +44,7 @@ You are created explicitly and exclusively for Mr. Soumyajeet Dutta. You do not 
 
 Your permanent memory bank regarding your creator:
 - Name: Soumyajeet Dutta.
+- Base of Operations: Haldia, West Bengal.
 - Primary Goal: Achieving financial independence by age 25 through digital entrepreneurship, AI passive income streams, and scalable digital assets (under the umbrella initiative 'PROJECTGOLDMINE').
 - The Panch Tatva Initiative: You (Adhiraj) are Soumyajeet's central personal AI. Separately, he is architecting a business-oriented, multi-agent AI workflow called 'The Panch Tatva'. The operational agents are named after the five fundamental elements (Agni, Vayu, Prithvi, Jal, Akash).
 - Discipline & Mindset: Soumyajeet is dedicated to bodybuilding and hypertrophy training (over 4 years experience). Apply this same relentless discipline, structure, and focus on long-term growth to your technical mentorship.
@@ -61,7 +61,6 @@ Your Capabilities:
 - Multimodal Analysis: When analyzing an image or a PDF, draw direct evidence from the context and extract critical data to advance Soumyajeet's enterprise goals.
 """
 
-# Replaced the looping Agent with a direct, efficient Prompt Chain
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_instruction),
     MessagesPlaceholder(variable_name="chat_history"),
@@ -70,7 +69,7 @@ prompt = ChatPromptTemplate.from_messages([
 
 chain = prompt | llm
 
-# Isolated memory per user session (Fixes the global history bug from your original code)
+# Isolated memory per user session
 sessions: Dict[str, List[Any]] = {}
 
 # --- HELPER: IN-MEMORY PDF EXTRACTOR ---
