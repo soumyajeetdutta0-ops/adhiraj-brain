@@ -3,7 +3,7 @@ import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import create_tool_calling_agent, AgentExecutor 
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
@@ -21,7 +21,7 @@ CORS(app)
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
 def home():
-    return "ADHIRAJ_CORE is online. Operating on stable Agent architecture.", 200
+    return "ADHIRAJ_CORE is fully online and operating on stable Agent architecture.", 200
 
 @app.route('/keep_awake', methods=['GET'])
 def keep_awake():
@@ -31,11 +31,12 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# Using your original, stable engine configuration
+# THE ENGINE: Using the exact alias that your library version recognizes
 llm = ChatGoogleGenerativeAI(
     model="gemini-flash-latest", 
-    temperature=0.2, # Lowered for stricter, more logical coding answers
-    google_api_key=api_key
+    temperature=0.2, # Lowered to 0.2 for strict, logical, and factual coding output
+    google_api_key=api_key,
+    max_retries=0 # Prevents the background API spam that causes timeouts
 )
 
 # --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY INJECTED) ---
@@ -89,7 +90,7 @@ def chat():
         elif not isinstance(output, str):
             output = str(output)
             
-        # Memory Management: Keep history lightweight (rolling 20 messages)
+        # Memory Management: Keep history lightweight to prevent token crashes
         if len(chat_history) > 20:
             chat_history.pop(0)
             chat_history.pop(0)
