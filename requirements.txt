@@ -1,11 +1,11 @@
-Flask
-Flask-Cors
+flask
+flask-cors
 langchain
 langchain-core
 langchain-community
 langchain-google-genai
 google-generativeai
-duckduckgo-search
+ddgs
 beautifulsoup4
 python-dotenv
 requests
