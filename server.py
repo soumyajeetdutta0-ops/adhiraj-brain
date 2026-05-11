@@ -4,13 +4,12 @@ import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import create_tool_calling_agent, AgentExecutor 
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
 # --- ENTERPRISE LOGGING ---
-# This ensures Render captures exact errors instead of failing silently
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -37,12 +36,11 @@ try:
     search_tool = DuckDuckGoSearchRun()
     tools = [search_tool]
 
-    # Locked to the stable 1.5 architecture to prevent "NOT FOUND" beta errors
     llm = ChatGoogleGenerativeAI(
         model="gemini-1.5-flash", 
         temperature=0.2, 
         google_api_key=api_key,
-        max_retries=2 # Small buffer to survive minor network drops
+        max_retries=2 
     )
 except Exception as e:
     logger.error(f"System failed to initialize AI components: {e}")
@@ -90,7 +88,6 @@ chat_history = []
 def chat():
     global chat_history
     
-    # Defensive payload checking
     if not request.is_json:
         return jsonify({"reply": "Invalid payload format. Expected JSON."}), 400
         
@@ -110,7 +107,7 @@ def chat():
         else:
             output = str(output)
             
-        # Hardened Memory Management: Keep exact rolling history to prevent memory leaks
+        # Hardened Memory Management
         chat_history.append(HumanMessage(content=user_input))
         chat_history.append(AIMessage(content=output))
         
