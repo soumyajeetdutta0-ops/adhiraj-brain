@@ -6,7 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 # --- SECURITY CHECK ---
 api_key = os.environ.get("GOOGLE_API_KEY")
@@ -21,7 +21,7 @@ CORS(app)
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
 def home():
-    return "Adhiraj Cloud Brain is fully online and operating on the classic stable architecture.", 200
+    return "Adhiraj Cloud Brain is fully online and operating on the hybrid vision architecture.", 200
 
 @app.route('/keep_awake', methods=['GET'])
 def keep_awake():
@@ -31,14 +31,14 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# THE ENGINE: Using your preferred "latest" model alias
+# THE ENGINE
 llm = ChatGoogleGenerativeAI(
     model="gemini-flash-latest", 
     temperature=0.6,
     google_api_key=api_key
 )
 
-# --- THE SOUMYAJEET DIRECTIVE ---
+# --- CREATOR IMPRINT ---
 system_instruction = """
 You are Adhiraj, a personal AI chatbot who is designed and created by MR. Soumyajeet Dutta.
 You are highly capable and can assist with a wide variety of tasks, from general knowledge to complex problem-solving. 
@@ -65,34 +65,58 @@ chat_history = []
 @app.route('/chat', methods=['POST'])
 def chat():
     data = request.get_json()
-    user_input = data.get('message')
+    user_input = data.get('message', '')
+    image_b64 = data.get('image', None) # Detects the image payload from your frontend
     
-    if not user_input:
-        return jsonify({"reply": "I didn't catch that."}), 400
+    if not user_input and not image_b64:
+        return jsonify({"reply": "I didn't catch that. Please provide text or an image."}), 400
         
     try:
-        response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
-        output = response["output"]
-        
-        # Format cleanup
-        if isinstance(output, list):
-            output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
-        elif not isinstance(output, str):
-            output = str(output)
+        # --- THE VISION OVERRIDE ---
+        if image_b64:
+            # Clean the base64 string if your frontend sends data URI headers
+            if "," in image_b64:
+                image_b64 = image_b64.split(",")[1]
+                
+            vision_message = HumanMessage(
+                content=[
+                    {"type": "text", "text": user_input if user_input else "Analyze this image and detail what you see."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
+                ]
+            )
             
-        # Keep memory lightweight to prevent token crashes
+            # Bypass the web-search agent to process the image directly through the vision LLM
+            response = llm.invoke([SystemMessage(content=system_instruction), vision_message])
+            output = response.content
+            
+        else:
+            # --- TEXT & WEB SEARCH MODE ---
+            response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
+            output = response["output"]
+            
+            # Format cleanup
+            if isinstance(output, list):
+                output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
+            elif not isinstance(output, str):
+                output = str(output)
+                
+        # --- DEFENSIVE MEMORY MANAGEMENT ---
+        # Keep memory lightweight to prevent Render from crashing due to 512MB RAM limits.
+        # We NEVER save the massive Base64 image strings to history.
         if len(chat_history) > 20:
             chat_history.pop(0)
             chat_history.pop(0)
             
-        chat_history.append(HumanMessage(content=user_input))
+        # Only log the text of what happened to keep the buffer clean
+        memory_input = user_input if user_input else "[Image Uploaded for Analysis]"
+        chat_history.append(HumanMessage(content=memory_input))
         chat_history.append(AIMessage(content=output))
         
         return jsonify({"reply": output})
         
     except Exception as e:
         print(f"Backend Error: {e}") 
-        return jsonify({"reply": f"Sorry, my systems hit a snag: {e}"}), 500
+        return jsonify({"reply": f"Sorry, my optical systems hit a snag: {e}"}), 500
 
 # --- BOOT SEQUENCE ---
 if __name__ == '__main__':
