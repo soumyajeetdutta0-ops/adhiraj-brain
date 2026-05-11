@@ -3,7 +3,7 @@ import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
+from langchain.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
@@ -31,12 +31,12 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# THE ENGINE: Using the exact alias that your library version recognizes
+# THE ENGINE: Locked to the modern architecture
 llm = ChatGoogleGenerativeAI(
     model="gemini-flash-latest", 
-    temperature=0.2, # Lowered to 0.2 for strict, logical, and factual coding output
+    temperature=0.2, 
     google_api_key=api_key,
-    max_retries=0 # Prevents the background API spam that causes timeouts
+    max_retries=0 
 )
 
 # --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY INJECTED) ---
@@ -84,7 +84,7 @@ def chat():
         response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
         output = response["output"]
         
-        # Format cleanup
+        # Format cleanup to prevent array-flattening UI crashes
         if isinstance(output, list):
             output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
         elif not isinstance(output, str):
