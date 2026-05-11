@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -8,11 +9,15 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage
 
+# --- ENTERPRISE LOGGING ---
+# This ensures Render captures exact errors instead of failing silently
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 # --- SECURITY CHECK ---
 api_key = os.environ.get("GOOGLE_API_KEY")
-
 if not api_key:
-    print("CRITICAL ERROR: I cannot find the GOOGLE_API_KEY in Render!")
+    logger.error("CRITICAL ERROR: GOOGLE_API_KEY environment variable is missing!")
     sys.exit(1)
 
 app = Flask(__name__)
@@ -21,23 +26,27 @@ CORS(app)
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
 def home():
-    return "ADHIRAJ_CORE is fully online and operating on stable Agent architecture.", 200
+    return "ADHIRAJ_CORE is online. Architecture: Hardened Agent Protocol.", 200
 
 @app.route('/keep_awake', methods=['GET'])
 def keep_awake():
     return "Awake", 200
 
-# --- AI SETUP ---
-search_tool = DuckDuckGoSearchRun()
-tools = [search_tool]
+# --- AI ENGINE & TOOLS SETUP ---
+try:
+    search_tool = DuckDuckGoSearchRun()
+    tools = [search_tool]
 
-# THE ENGINE: Locked to the modern architecture
-llm = ChatGoogleGenerativeAI(
-    model="gemini-flash-latest", 
-    temperature=0.2, 
-    google_api_key=api_key,
-    max_retries=0 
-)
+    # Locked to the stable 1.5 architecture to prevent "NOT FOUND" beta errors
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash", 
+        temperature=0.2, 
+        google_api_key=api_key,
+        max_retries=2 # Small buffer to survive minor network drops
+    )
+except Exception as e:
+    logger.error(f"System failed to initialize AI components: {e}")
+    sys.exit(1)
 
 # --- THE SOUMYAJEET DIRECTIVE (CORE MEMORY INJECTED) ---
 system_instruction = """
@@ -66,43 +75,53 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
-agent = create_tool_calling_agent(llm, tools, prompt)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
+try:
+    agent = create_tool_calling_agent(llm, tools, prompt)
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
+except Exception as e:
+    logger.error(f"System failed to build Agent Executor: {e}")
+    sys.exit(1)
 
+# Global Session Memory
 chat_history = []
 
 # --- CHAT LOGIC ---
 @app.route('/chat', methods=['POST'])
 def chat():
+    global chat_history
+    
+    # Defensive payload checking
+    if not request.is_json:
+        return jsonify({"reply": "Invalid payload format. Expected JSON."}), 400
+        
     data = request.get_json()
-    user_input = data.get('message')
+    user_input = data.get('message', '').strip()
     
     if not user_input:
         return jsonify({"reply": "System awaiting input."}), 400
         
     try:
         response = agent_executor.invoke({"input": user_input, "chat_history": chat_history})
-        output = response["output"]
+        output = response.get("output", "Error: No output generated.")
         
-        # Format cleanup to prevent array-flattening UI crashes
+        # Defensive Format Cleanup
         if isinstance(output, list):
-            output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
-        elif not isinstance(output, str):
+            output = "".join([item.get('text', '') if isinstance(item, dict) else str(item) for item in output])
+        else:
             output = str(output)
             
-        # Memory Management: Keep history lightweight to prevent token crashes
-        if len(chat_history) > 20:
-            chat_history.pop(0)
-            chat_history.pop(0)
-            
+        # Hardened Memory Management: Keep exact rolling history to prevent memory leaks
         chat_history.append(HumanMessage(content=user_input))
         chat_history.append(AIMessage(content=output))
         
+        if len(chat_history) > 20:
+            chat_history = chat_history[-20:]
+            
         return jsonify({"reply": output})
         
     except Exception as e:
-        print(f"Backend Error: {e}") 
-        return jsonify({"reply": f"[SYS_HALT] Execution error: {e}"}), 500
+        logger.error(f"Backend Execution Error: {e}") 
+        return jsonify({"reply": f"[SYS_HALT] Execution error: {str(e)}"}), 500
 
 # --- BOOT SEQUENCE ---
 if __name__ == '__main__':
