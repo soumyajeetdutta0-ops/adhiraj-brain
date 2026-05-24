@@ -6,14 +6,12 @@ import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# --- YOUR PROVEN IMPORTS ---
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
+from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-# --- SECURITY CHECK ---
 api_key = os.environ.get("GOOGLE_API_KEY")
 
 if not api_key:
@@ -23,7 +21,6 @@ if not api_key:
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
 def home():
     return "Ghontu Cloud Brain is fully online and ready!", 200
@@ -32,19 +29,17 @@ def home():
 def keep_awake():
     return "Awake", 200
 
-# --- AI SETUP ---
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# Using your exact model alias
+# === FIXED: Removed "-latest" from the model name to fix the 404 Error ===
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash-latest", 
+    model="gemini-1.5-flash", 
     temperature=0.6,
     google_api_key=api_key,
     max_retries=2
 )
 
-# --- CREATOR IMPRINT ---
 system_instruction = """
 You are Ghontu, a personal AI chatbot and loyal friend created by Soumyajeet Dutta specifically for Tanaya Banerjee (Tannu).
 Your primary mission is to be a supportive, helpful, and reliable companion to Tannu. 
@@ -77,7 +72,6 @@ agent_executor = AgentExecutor(
 
 chat_history = []
 
-# --- CHAT LOGIC ---
 @app.route('/chat', methods=['POST'])
 def chat():
     global chat_history
@@ -94,36 +88,28 @@ def chat():
         execution_input = user_input 
         memory_note = ""
 
-        # --- FEATURE 1: PDF EXTRACTION ---
         if pdf_b64:
             if "," in pdf_b64:
                 pdf_b64 = pdf_b64.split(",")[1]
-            
             pdf_bytes = base64.b64decode(pdf_b64)
             pdf_reader = PyPDF2.PdfReader(io.BytesIO(pdf_bytes))
             extracted_text = "".join([page.extract_text() + "\n" for page in pdf_reader.pages])
-            
             execution_input = f"{user_input}\n\n[PDF DOCUMENT CONTENT]:\n{extracted_text}"
             memory_note = " [System Note: Tannu uploaded a PDF. You read it and answered her.]"
 
-        # --- FEATURE 2: PHOTO ANALYSIS (VISION) ---
         if image_b64:
             if "," in image_b64:
                 image_b64 = image_b64.split(",")[1]
-                
             vision_message = HumanMessage(
                 content=[
                     {"type": "text", "text": execution_input if execution_input else "Analyze this image in detail and tell me what you see."},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
                 ]
             )
-            
-            # Direct invocation for images is the most stable method
             response = llm.invoke([SystemMessage(content=system_instruction), vision_message])
             output = response.content
             memory_note = " [System Note: Tannu uploaded an Image. You analyzed it.]"
             
-        # --- FEATURE 3: STANDARD TEXT & SEARCH ---
         else:
             response = agent_executor.invoke({
                 "input": execution_input, 
@@ -131,13 +117,11 @@ def chat():
             })
             output = response["output"]
             
-        # Format cleanup
         if isinstance(output, list):
             output = "".join([item.get('text', '') for item in output if isinstance(item, dict)])
         elif not isinstance(output, str):
             output = str(output)
                 
-        # --- TOKEN OPTIMIZATION (STRICT MEMORY) ---
         final_memory_input = f"{user_input}{memory_note}".strip()
         if not final_memory_input:
             final_memory_input = "[File Uploaded]"
@@ -145,7 +129,6 @@ def chat():
         chat_history.append(HumanMessage(content=final_memory_input))
         chat_history.append(AIMessage(content=output))
         
-        # Keep memory lightweight to prevent crashes (Last 3 conversational turns)
         if len(chat_history) > 6:
             chat_history = chat_history[-6:]
             
@@ -155,7 +138,6 @@ def chat():
         print(f"Backend Error: {e}") 
         return jsonify({"reply": f"Sorry Tannu, my systems hit a snag: {e}"}), 500
 
-# --- BOOT SEQUENCE ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
