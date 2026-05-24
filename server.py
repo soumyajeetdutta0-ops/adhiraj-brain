@@ -6,9 +6,10 @@ import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# --- UNIVERSAL IMPORTS (Immune to Render Cache Errors) ---
+# --- THE CORRECT MODERN IMPORTS ---
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.agents import initialize_agent, AgentType
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
@@ -35,7 +36,6 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# Using the requested 'latest' alias for maximum stability
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash-latest", 
     temperature=0.6,
@@ -52,13 +52,19 @@ Tone: Warm, approachable, respectful, and direct. Get right to the point.
 Tools: Use search for real-time facts if needed.
 """
 
-# Universal Agent Initialization
-agent_executor = initialize_agent(
-    tools=tools,
-    llm=llm,
-    agent=AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-    verbose=True,
-    agent_kwargs={"system_message": system_instruction},
+prompt = ChatPromptTemplate.from_messages([
+    ("system", system_instruction),
+    MessagesPlaceholder(variable_name="chat_history"),
+    ("human", "{input}"),
+    MessagesPlaceholder(variable_name="agent_scratchpad"),
+])
+
+# --- MODERN AGENT ROUTING ---
+agent = create_tool_calling_agent(llm, tools, prompt)
+agent_executor = AgentExecutor(
+    agent=agent, 
+    tools=tools, 
+    verbose=True, 
     handle_parsing_errors=True,
     max_iterations=3 
 )
@@ -95,7 +101,7 @@ def chat():
             execution_input = f"{user_input}\n\n[PDF DOCUMENT CONTENT]:\n{extracted_text}"
             memory_note = " [System Note: Tannu uploaded a PDF. You read it and answered her.]"
 
-        # --- 2. MULTIMODAL VISION ENGINE (Image Analysis) ---
+        # --- 2. VISION OVERRIDE (Image Analysis Feature) ---
         if image_b64:
             if "," in image_b64:
                 image_b64 = image_b64.split(",")[1]
@@ -114,17 +120,10 @@ def chat():
             
         # --- 3. TEXT & SEARCH AGENT ---
         else:
-            # Build manual context string to guarantee compatibility with old LangChain versions
-            history_text = ""
-            for msg in chat_history:
-                role = "Tannu" if isinstance(msg, HumanMessage) else "Ghontu"
-                history_text += f"{role}: {msg.content}\n"
-                
-            full_input = execution_input
-            if history_text:
-                full_input = f"Past Conversation Context:\n{history_text}\n\nTannu's Current Message: {execution_input}"
-
-            response = agent_executor.invoke({"input": full_input})
+            response = agent_executor.invoke({
+                "input": execution_input, 
+                "chat_history": chat_history
+            })
             output = response["output"]
             
         # --- FORMAT CLEANUP ---
