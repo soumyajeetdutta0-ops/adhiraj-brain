@@ -10,5 +10,4 @@ beautifulsoup4
 python-dotenv
 requests
 gunicorn
-langchain-classic
 PyPDF2
