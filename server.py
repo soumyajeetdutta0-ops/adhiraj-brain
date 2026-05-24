@@ -6,7 +6,7 @@ import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# --- CORRECTED LANGCHAIN IMPORTS ---
+# --- STRICT LANGCHAIN IMPORTS ---
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -18,7 +18,6 @@ api_key = os.environ.get("GOOGLE_API_KEY")
 
 if not api_key:
     print("CRITICAL ERROR: GOOGLE_API_KEY environment variable is missing in Render!")
-    # We fail fast here because running an AI without a brain is bad engineering.
     sys.exit(1)
 
 app = Flask(__name__)
@@ -62,14 +61,14 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
-# Innovative agent routing using standard libraries
+# Modern agent routing implementation
 agent = create_tool_calling_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(
     agent=agent, 
     tools=tools, 
     verbose=True, 
     handle_parsing_errors=True,
-    max_iterations=3 # Prevents the agent from looping and burning tokens
+    max_iterations=3
 )
 
 # Global Memory State
@@ -142,7 +141,7 @@ def chat():
         chat_history.append(HumanMessage(content=final_memory_input))
         chat_history.append(AIMessage(content=output))
         
-        # SLIDING WINDOW: Keep only the last 3 turns (6 messages)
+        # SLIDING WINDOW: Keep only the last 3 turns
         if len(chat_history) > 6:
             chat_history = chat_history[-6:]
             
