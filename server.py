@@ -32,9 +32,9 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# === FIXED: Removed "-latest" from the model name to fix the 404 Error ===
+# === FIXED: Upgraded to Google's newest active model (2.5-flash) ===
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash", 
+    model="gemini-2.5-flash", 
     temperature=0.6,
     google_api_key=api_key,
     max_retries=2
