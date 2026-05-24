@@ -6,9 +6,9 @@ import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# LangChain & Google Imports
+# --- CORRECTED LANGCHAIN IMPORTS ---
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
+from langchain.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
@@ -17,7 +17,8 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 api_key = os.environ.get("GOOGLE_API_KEY")
 
 if not api_key:
-    print("CRITICAL ERROR: GOOGLE_API_KEY environment variable is missing!")
+    print("CRITICAL ERROR: GOOGLE_API_KEY environment variable is missing in Render!")
+    # We fail fast here because running an AI without a brain is bad engineering.
     sys.exit(1)
 
 app = Flask(__name__)
@@ -45,7 +46,7 @@ llm = ChatGoogleGenerativeAI(
     max_retries=2
 )
 
-# --- CREATOR IMPRINT (Optimized for fewer tokens) ---
+# --- CREATOR IMPRINT ---
 system_instruction = """
 You are Ghontu, a loyal AI friend created by Soumyajeet Dutta for Tanaya Banerjee (Tannu).
 Mission: Be a supportive, reliable companion assisting Tannu with daily tasks and guidance.
@@ -61,6 +62,7 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
+# Innovative agent routing using standard libraries
 agent = create_tool_calling_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(
     agent=agent, 
@@ -87,8 +89,8 @@ def chat():
         return jsonify({"reply": "I need some text, an image, or a document to work with, Tannu."}), 400
         
     try:
-        execution_input = user_input # What the AI reads right now
-        memory_note = ""             # What the AI remembers later
+        execution_input = user_input 
+        memory_note = ""             
 
         # --- 1. PDF EXTRACTION ENGINE ---
         if pdf_b64:
@@ -132,7 +134,7 @@ def chat():
         elif not isinstance(output, str):
             output = str(output)
                 
-        # --- 4. STRICT MEMORY MANAGEMENT (Token Saver) ---
+        # --- 4. STRICT MEMORY MANAGEMENT ---
         final_memory_input = f"{user_input}{memory_note}".strip()
         if not final_memory_input:
             final_memory_input = "[File Uploaded]"
