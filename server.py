@@ -6,7 +6,7 @@ import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# --- YOUR EXACT PROVEN IMPORTS ---
+# --- YOUR PROVEN IMPORTS ---
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -21,7 +21,7 @@ if not api_key:
     sys.exit(1)
 
 app = Flask(__name__)
-CORS(app) 
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # --- RENDER HEALTH CHECKS ---
 @app.route('/', methods=['GET'])
@@ -36,7 +36,7 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# YOUR EXACT REQUESTED MODEL
+# Using your exact model alias
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash-latest", 
     temperature=0.6,
@@ -66,7 +66,6 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad"),
 ])
 
-# USING LANGCHAIN CLASSIC AS REQUESTED
 agent = create_tool_calling_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(
     agent=agent, 
@@ -119,11 +118,12 @@ def chat():
                 ]
             )
             
+            # Direct invocation for images is the most stable method
             response = llm.invoke([SystemMessage(content=system_instruction), vision_message])
             output = response.content
             memory_note = " [System Note: Tannu uploaded an Image. You analyzed it.]"
             
-        # --- FEATURE 3: STANDARD TEXT & SEARCH (CLASSIC AGENT) ---
+        # --- FEATURE 3: STANDARD TEXT & SEARCH ---
         else:
             response = agent_executor.invoke({
                 "input": execution_input, 
@@ -145,7 +145,7 @@ def chat():
         chat_history.append(HumanMessage(content=final_memory_input))
         chat_history.append(AIMessage(content=output))
         
-        # Keep memory lightweight to prevent token snowballing (Last 3 conversational turns)
+        # Keep memory lightweight to prevent crashes (Last 3 conversational turns)
         if len(chat_history) > 6:
             chat_history = chat_history[-6:]
             
@@ -153,7 +153,7 @@ def chat():
         
     except Exception as e:
         print(f"Backend Error: {e}") 
-        return jsonify({"reply": f"Sorry Tannu, my systems hit a snag: {str(e)}"}), 500
+        return jsonify({"reply": f"Sorry Tannu, my systems hit a snag: {e}"}), 500
 
 # --- BOOT SEQUENCE ---
 if __name__ == '__main__':
