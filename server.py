@@ -6,18 +6,16 @@ import PyPDF2
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# === SWITCHED: Using OpenAI package wrapper to communicate with OpenRouter ===
 from langchain_openai import ChatOpenAI
 from langchain_classic.agents import create_tool_calling_agent, AgentExecutor
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-# === SWITCHED: Pointing to your new environment variable ===
 api_key = os.environ.get("OPENROUTER_API_KEY")
 
 if not api_key:
-    print("CRITICAL ERROR: I cannot find the OPENROUTER_API_KEY in Render!")
+    print("CRITICAL ERROR: I cannot find the OPENROUTER_API_KEY in Render!", flush=True)
     sys.exit(1)
 
 app = Flask(__name__)
@@ -34,9 +32,9 @@ def keep_awake():
 search_tool = DuckDuckGoSearchRun()
 tools = [search_tool]
 
-# === FIXED: Configured OpenRouter to process Gemma 4 31B completely free ===
+# === INNOVATIVE FIX: Dynamic routing to guarantee uptime ===
 llm = ChatOpenAI(
-    model="google/gemma-4-31b-it:free", 
+    model="openrouter/free", 
     openai_api_key=api_key,
     openai_api_base="https://openrouter.ai/api/v1",
     temperature=0.6,
@@ -138,7 +136,7 @@ def chat():
         return jsonify({"reply": output})
         
     except Exception as e:
-        print(f"Backend Error: {e}") 
+        print(f"Backend Error: {e}", flush=True) 
         return jsonify({"reply": f"Sorry Tannu, my systems hit a snag: {e}"}), 500
 
 if __name__ == '__main__':
