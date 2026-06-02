@@ -5,7 +5,7 @@ langchain-core
 langchain-community
 langchain-classic
 langchain-openai
-duckduckgo-search
+ddgs
 beautifulsoup4
 python-dotenv
 requests
