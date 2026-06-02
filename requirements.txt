@@ -3,12 +3,11 @@ flask-cors
 langchain
 langchain-core
 langchain-community
-langchain-google-genai
-google-generativeai
-ddgs
+langchain-classic
+langchain-openai
+duckduckgo-search
 beautifulsoup4
 python-dotenv
 requests
 gunicorn
-langchain-classic
 PyPDF2
